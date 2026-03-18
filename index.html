@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Dialler Scheduler V2</title>
+<title>Dialler Scheduler V3</title>
 
 <style>
 body {
@@ -13,13 +13,11 @@ body {
 }
 
 .container {
-  max-width: 1000px;
+  max-width: 1100px;
   margin: auto;
 }
 
-h1 {
-  text-align: center;
-}
+h1 { text-align: center; }
 
 input {
   width: 80px;
@@ -50,50 +48,53 @@ th, td {
 .ok { color: lightgreen; }
 .under { color: red; }
 .over { color: orange; }
+
+.shiftBox {
+  margin-top: 20px;
+}
 </style>
 </head>
 
 <body>
 
 <div class="container">
-<h1>📞 Dialler Scheduler V2</h1>
+<h1>📞 Dialler Scheduler V3</h1>
 
 <div>
-  AHT (sec): <input id="aht" type="number" value="300">
+  AHT: <input id="aht" type="number" value="300">
   Shrinkage (%): <input id="shrinkage" type="number" value="30">
 </div>
 
 <table id="inputTable">
 <thead>
-<tr>
-  <th>Hour</th>
-  <th>Forecast Calls</th>
-</tr>
+<tr><th>Hour</th><th>Forecast Calls</th></tr>
 </thead>
 <tbody></tbody>
 </table>
 
-<button onclick="calculate()">Calculate Staffing</button>
+<button onclick="calculate()">Run Scheduler</button>
 
 <table id="outputTable">
 <thead>
 <tr>
   <th>Hour</th>
-  <th>Calls</th>
-  <th>Agents Needed</th>
-  <th>Status</th>
+  <th>Required</th>
+  <th>Covered</th>
+  <th>Gap</th>
 </tr>
 </thead>
 <tbody></tbody>
 </table>
 
-<h2 id="summary"></h2>
+<div class="shiftBox">
+<h2>Shift Allocation</h2>
+<p id="shifts"></p>
+</div>
 
 </div>
 
 <script>
 
-// Generate hours
 const hours = [
 "08:00","09:00","10:00","11:00","12:00",
 "13:00","14:00","15:00","16:00","17:00"
@@ -102,13 +103,12 @@ const hours = [
 const inputBody = document.querySelector("#inputTable tbody");
 
 hours.forEach(hour => {
-  const row = `
+  inputBody.innerHTML += `
     <tr>
       <td>${hour}</td>
       <td><input type="number" value="0"></td>
     </tr>
   `;
-  inputBody.innerHTML += row;
 });
 
 function calculate() {
@@ -117,45 +117,52 @@ function calculate() {
 
   const rows = document.querySelectorAll("#inputTable tbody tr");
   const output = document.querySelector("#outputTable tbody");
-
   output.innerHTML = "";
 
-  let totalAgents = 0;
+  let required = [];
 
-  rows.forEach((row, index) => {
+  // Step 1: Calculate required agents
+  rows.forEach(row => {
     const calls = parseFloat(row.children[1].children[0].value) || 0;
-
-    // 15-min interval (900 seconds)
-    const baseAgents = (calls * aht) / 3600;
-    const finalAgents = Math.ceil(baseAgents * (1 + shrinkage));
-
-    totalAgents += finalAgents;
-
-    let status = "OK";
-    let className = "ok";
-
-    if (finalAgents > baseAgents * 1.2) {
-      status = "Over";
-      className = "over";
-    } else if (finalAgents < baseAgents) {
-      status = "Under";
-      className = "under";
-    }
-
-    const newRow = `
-      <tr>
-        <td>${hours[index]}</td>
-        <td>${calls}</td>
-        <td class="${className}">${finalAgents}</td>
-        <td>${status}</td>
-      </tr>
-    `;
-
-    output.innerHTML += newRow;
+    const agents = Math.ceil(((calls * aht) / 3600) * (1 + shrinkage));
+    required.push(agents);
   });
 
-  document.getElementById("summary").innerText =
-    "Total Agents Required Across Day: " + totalAgents;
+  // Step 2: Simple shift allocation logic
+  let morning = Math.max(...required.slice(0, 5)); // 08–12 peak
+  let mid = Math.max(...required.slice(2, 7));     // 10–14 peak
+  let late = Math.max(...required.slice(4, 10));   // 12–17 peak
+
+  // Step 3: Coverage simulation
+  hours.forEach((hour, i) => {
+    let covered = 0;
+
+    if (i <= 7) covered += morning;
+    if (i >= 2 && i <= 9) covered += mid;
+    if (i >= 4) covered += late;
+
+    const gap = covered - required[i];
+
+    let className = "ok";
+    if (gap < 0) className = "under";
+    if (gap > 5) className = "over";
+
+    output.innerHTML += `
+      <tr>
+        <td>${hour}</td>
+        <td>${required[i]}</td>
+        <td>${covered}</td>
+        <td class="${className}">${gap}</td>
+      </tr>
+    `;
+  });
+
+  // Step 4: Display shifts
+  document.getElementById("shifts").innerHTML = `
+    Morning (08–16): ${morning} agents<br>
+    Mid (10–18): ${mid} agents<br>
+    Late (12–20): ${late} agents
+  `;
 }
 
 </script>
