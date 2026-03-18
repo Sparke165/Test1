@@ -1,123 +1,163 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Dialler Scheduler</title>
-  <style>
-    body {
-      font-family: Arial;
-      background: #0f172a;
-      color: white;
-      padding: 20px;
-    }
+<meta charset="UTF-8">
+<title>Dialler Scheduler V2</title>
 
-    h1 {
-      text-align: center;
-    }
+<style>
+body {
+  font-family: Arial;
+  background: #0f172a;
+  color: white;
+  padding: 20px;
+}
 
-    .container {
-      max-width: 800px;
-      margin: auto;
-    }
+.container {
+  max-width: 1000px;
+  margin: auto;
+}
 
-    input {
-      padding: 8px;
-      margin: 5px;
-      width: 150px;
-    }
+h1 {
+  text-align: center;
+}
 
-    button {
-      padding: 10px 20px;
-      margin-top: 10px;
-      cursor: pointer;
-      background: #22c55e;
-      border: none;
-      color: black;
-      font-weight: bold;
-    }
+input {
+  width: 80px;
+  padding: 5px;
+}
 
-    table {
-      width: 100%;
-      margin-top: 20px;
-      border-collapse: collapse;
-    }
+button {
+  padding: 10px 20px;
+  margin-top: 15px;
+  background: #22c55e;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+}
 
-    th, td {
-      padding: 10px;
-      border: 1px solid #334155;
-      text-align: center;
-    }
+table {
+  width: 100%;
+  margin-top: 20px;
+  border-collapse: collapse;
+}
 
-    .under { color: red; }
-    .over { color: orange; }
-    .ok { color: lightgreen; }
-  </style>
+th, td {
+  border: 1px solid #334155;
+  padding: 8px;
+  text-align: center;
+}
+
+.ok { color: lightgreen; }
+.under { color: red; }
+.over { color: orange; }
+</style>
 </head>
+
 <body>
 
 <div class="container">
-  <h1>📞 Dialler Agent Scheduler</h1>
+<h1>📞 Dialler Scheduler V2</h1>
 
-  <div>
-    <input id="calls" type="number" placeholder="Calls per hour">
-    <input id="aht" type="number" placeholder="AHT (seconds)">
-    <input id="shrinkage" type="number" placeholder="Shrinkage %">
-  </div>
+<div>
+  AHT (sec): <input id="aht" type="number" value="300">
+  Shrinkage (%): <input id="shrinkage" type="number" value="30">
+</div>
 
-  <button onclick="calculate()">Calculate</button>
+<table id="inputTable">
+<thead>
+<tr>
+  <th>Hour</th>
+  <th>Forecast Calls</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
 
-  <table id="resultTable">
-    <thead>
-      <tr>
-        <th>Calls</th>
-        <th>AHT</th>
-        <th>Agents Needed</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+<button onclick="calculate()">Calculate Staffing</button>
+
+<table id="outputTable">
+<thead>
+<tr>
+  <th>Hour</th>
+  <th>Calls</th>
+  <th>Agents Needed</th>
+  <th>Status</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+
+<h2 id="summary"></h2>
+
 </div>
 
 <script>
+
+// Generate hours
+const hours = [
+"08:00","09:00","10:00","11:00","12:00",
+"13:00","14:00","15:00","16:00","17:00"
+];
+
+const inputBody = document.querySelector("#inputTable tbody");
+
+hours.forEach(hour => {
+  const row = `
+    <tr>
+      <td>${hour}</td>
+      <td><input type="number" value="0"></td>
+    </tr>
+  `;
+  inputBody.innerHTML += row;
+});
+
 function calculate() {
-  const calls = parseFloat(document.getElementById("calls").value);
   const aht = parseFloat(document.getElementById("aht").value);
   const shrinkage = parseFloat(document.getElementById("shrinkage").value) / 100;
 
-  if (!calls || !aht || isNaN(shrinkage)) {
-    alert("Fill all fields properly");
-    return;
-  }
+  const rows = document.querySelectorAll("#inputTable tbody tr");
+  const output = document.querySelector("#outputTable tbody");
 
-  const baseAgents = (calls * aht) / 3600;
-  const finalAgents = Math.ceil(baseAgents * (1 + shrinkage));
+  output.innerHTML = "";
 
-  const table = document.querySelector("#resultTable tbody");
-  table.innerHTML = "";
+  let totalAgents = 0;
 
-  let status = "ok";
-  let className = "ok";
+  rows.forEach((row, index) => {
+    const calls = parseFloat(row.children[1].children[0].value) || 0;
 
-  if (finalAgents > baseAgents * 1.2) {
-    status = "Overstaffed";
-    className = "over";
-  } else if (finalAgents < baseAgents) {
-    status = "Understaffed";
-    className = "under";
-  }
+    // 15-min interval (900 seconds)
+    const baseAgents = (calls * aht) / 3600;
+    const finalAgents = Math.ceil(baseAgents * (1 + shrinkage));
 
-  const row = `
-    <tr>
-      <td>${calls}</td>
-      <td>${aht}</td>
-      <td class="${className}">
-        ${finalAgents} (${status})
-      </td>
-    </tr>
-  `;
+    totalAgents += finalAgents;
 
-  table.innerHTML = row;
+    let status = "OK";
+    let className = "ok";
+
+    if (finalAgents > baseAgents * 1.2) {
+      status = "Over";
+      className = "over";
+    } else if (finalAgents < baseAgents) {
+      status = "Under";
+      className = "under";
+    }
+
+    const newRow = `
+      <tr>
+        <td>${hours[index]}</td>
+        <td>${calls}</td>
+        <td class="${className}">${finalAgents}</td>
+        <td>${status}</td>
+      </tr>
+    `;
+
+    output.innerHTML += newRow;
+  });
+
+  document.getElementById("summary").innerText =
+    "Total Agents Required Across Day: " + totalAgents;
 }
+
 </script>
 
 </body>
