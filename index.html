@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dialler Scheduler</title>
+  <style>
+    body {
+      font-family: Arial;
+      background: #0f172a;
+      color: white;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: auto;
+    }
+
+    input {
+      padding: 8px;
+      margin: 5px;
+      width: 150px;
+    }
+
+    button {
+      padding: 10px 20px;
+      margin-top: 10px;
+      cursor: pointer;
+      background: #22c55e;
+      border: none;
+      color: black;
+      font-weight: bold;
+    }
+
+    table {
+      width: 100%;
+      margin-top: 20px;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 10px;
+      border: 1px solid #334155;
+      text-align: center;
+    }
+
+    .under { color: red; }
+    .over { color: orange; }
+    .ok { color: lightgreen; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>📞 Dialler Agent Scheduler</h1>
+
+  <div>
+    <input id="calls" type="number" placeholder="Calls per hour">
+    <input id="aht" type="number" placeholder="AHT (seconds)">
+    <input id="shrinkage" type="number" placeholder="Shrinkage %">
+  </div>
+
+  <button onclick="calculate()">Calculate</button>
+
+  <table id="resultTable">
+    <thead>
+      <tr>
+        <th>Calls</th>
+        <th>AHT</th>
+        <th>Agents Needed</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<script>
+function calculate() {
+  const calls = parseFloat(document.getElementById("calls").value);
+  const aht = parseFloat(document.getElementById("aht").value);
+  const shrinkage = parseFloat(document.getElementById("shrinkage").value) / 100;
+
+  if (!calls || !aht || isNaN(shrinkage)) {
+    alert("Fill all fields properly");
+    return;
+  }
+
+  const baseAgents = (calls * aht) / 3600;
+  const finalAgents = Math.ceil(baseAgents * (1 + shrinkage));
+
+  const table = document.querySelector("#resultTable tbody");
+  table.innerHTML = "";
+
+  let status = "ok";
+  let className = "ok";
+
+  if (finalAgents > baseAgents * 1.2) {
+    status = "Overstaffed";
+    className = "over";
+  } else if (finalAgents < baseAgents) {
+    status = "Understaffed";
+    className = "under";
+  }
+
+  const row = `
+    <tr>
+      <td>${calls}</td>
+      <td>${aht}</td>
+      <td class="${className}">
+        ${finalAgents} (${status})
+      </td>
+    </tr>
+  `;
+
+  table.innerHTML = row;
+}
+</script>
+
+</body>
+</html>
