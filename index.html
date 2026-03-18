@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Dialler Scheduler V3</title>
+<title>Dialler Scheduler V4</title>
 
 <style>
 body {
@@ -12,17 +12,10 @@ body {
   padding: 20px;
 }
 
-.container {
-  max-width: 1100px;
-  margin: auto;
-}
-
+.container { max-width: 1200px; margin: auto; }
 h1 { text-align: center; }
 
-input {
-  width: 80px;
-  padding: 5px;
-}
+input { width: 80px; padding: 5px; }
 
 button {
   padding: 10px 20px;
@@ -49,16 +42,13 @@ th, td {
 .under { color: red; }
 .over { color: orange; }
 
-.shiftBox {
-  margin-top: 20px;
-}
 </style>
 </head>
 
 <body>
 
 <div class="container">
-<h1>📞 Dialler Scheduler V3</h1>
+<h1>📞 Dialler Scheduler V4</h1>
 
 <div>
   AHT: <input id="aht" type="number" value="300">
@@ -72,32 +62,30 @@ th, td {
 <tbody></tbody>
 </table>
 
-<button onclick="calculate()">Run Scheduler</button>
+<button onclick="runScheduler()">Run Scheduler</button>
 
 <table id="outputTable">
 <thead>
 <tr>
   <th>Hour</th>
   <th>Required</th>
-  <th>Covered</th>
+  <th>Available</th>
+  <th>On Break</th>
   <th>Gap</th>
 </tr>
 </thead>
 <tbody></tbody>
 </table>
 
-<div class="shiftBox">
-<h2>Shift Allocation</h2>
-<p id="shifts"></p>
-</div>
+<h2 id="summary"></h2>
 
 </div>
 
 <script>
 
 const hours = [
-"08:00","09:00","10:00","11:00","12:00",
-"13:00","14:00","15:00","16:00","17:00"
+"08","09","10","11","12",
+"13","14","15","16","17"
 ];
 
 const inputBody = document.querySelector("#inputTable tbody");
@@ -105,13 +93,14 @@ const inputBody = document.querySelector("#inputTable tbody");
 hours.forEach(hour => {
   inputBody.innerHTML += `
     <tr>
-      <td>${hour}</td>
+      <td>${hour}:00</td>
       <td><input type="number" value="0"></td>
     </tr>
   `;
 });
 
-function calculate() {
+function runScheduler() {
+
   const aht = parseFloat(document.getElementById("aht").value);
   const shrinkage = parseFloat(document.getElementById("shrinkage").value) / 100;
 
@@ -121,27 +110,64 @@ function calculate() {
 
   let required = [];
 
-  // Step 1: Calculate required agents
+  // STEP 1: Required agents
   rows.forEach(row => {
     const calls = parseFloat(row.children[1].children[0].value) || 0;
     const agents = Math.ceil(((calls * aht) / 3600) * (1 + shrinkage));
     required.push(agents);
   });
 
-  // Step 2: Simple shift allocation logic
-  let morning = Math.max(...required.slice(0, 5)); // 08–12 peak
-  let mid = Math.max(...required.slice(2, 7));     // 10–14 peak
-  let late = Math.max(...required.slice(4, 10));   // 12–17 peak
+  // STEP 2: Shift sizes
+  let morning = Math.max(...required.slice(0, 5));
+  let mid = Math.max(...required.slice(2, 7));
+  let late = Math.max(...required.slice(4, 10));
 
-  // Step 3: Coverage simulation
-  hours.forEach((hour, i) => {
-    let covered = 0;
+  // STEP 3: Build agents
+  let agents = [];
 
-    if (i <= 7) covered += morning;
-    if (i >= 2 && i <= 9) covered += mid;
-    if (i >= 4) covered += late;
+  function createAgents(count, shift) {
+    for (let i = 0; i < count; i++) {
+      agents.push({
+        shift: shift,
+        breakHour: Math.floor(Math.random() * 6) + 2, // random break timing
+        lunchHour: Math.floor(Math.random() * 6) + 3
+      });
+    }
+  }
 
-    const gap = covered - required[i];
+  createAgents(morning, "morning");
+  createAgents(mid, "mid");
+  createAgents(late, "late");
+
+  // STEP 4: Simulate each hour
+  let totalGap = 0;
+
+  hours.forEach((h, i) => {
+
+    let working = 0;
+    let onBreak = 0;
+
+    agents.forEach(agent => {
+
+      let active = false;
+
+      if (agent.shift === "morning" && i <= 7) active = true;
+      if (agent.shift === "mid" && i >= 2 && i <= 9) active = true;
+      if (agent.shift === "late" && i >= 4) active = true;
+
+      if (!active) return;
+
+      // Break logic
+      if (i === agent.breakHour || i === agent.lunchHour) {
+        onBreak++;
+      } else {
+        working++;
+      }
+
+    });
+
+    const gap = working - required[i];
+    totalGap += gap;
 
     let className = "ok";
     if (gap < 0) className = "under";
@@ -149,20 +175,18 @@ function calculate() {
 
     output.innerHTML += `
       <tr>
-        <td>${hour}</td>
+        <td>${h}:00</td>
         <td>${required[i]}</td>
-        <td>${covered}</td>
+        <td>${working}</td>
+        <td>${onBreak}</td>
         <td class="${className}">${gap}</td>
       </tr>
     `;
   });
 
-  // Step 4: Display shifts
-  document.getElementById("shifts").innerHTML = `
-    Morning (08–16): ${morning} agents<br>
-    Mid (10–18): ${mid} agents<br>
-    Late (12–20): ${late} agents
-  `;
+  document.getElementById("summary").innerText =
+    "Net Staffing Gap (Day): " + totalGap;
+
 }
 
 </script>
