@@ -2,232 +2,189 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Dialler Scheduler V5</title>
+<title>WFM Dashboard V6</title>
 
 <style>
-body {
-  font-family: Arial;
-  background: #0f172a;
-  color: white;
+<body>
+  
+  {margin: 0;
+  font-family: 'Segoe UI', Arial;
+  background: #020617;
+  color: #38bdf8;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 220px;
+  height: 100vh;
+  background: #020617;
+  border-right: 1px solid #0ea5e9;
+  position: fixed;
+  padding: 20px;
+  box-shadow: 0 0 15px #0ea5e9;
+}
+
+.sidebar h2 {
+  color: #38bdf8;
+  text-shadow: 0 0 10px #38bdf8;
+}
+
+/* Main */
+.main {
+  margin-left: 240px;
   padding: 20px;
 }
 
-.container { max-width: 1300px; margin: auto; }
-h1 { text-align: center; }
-
-input, select {
-  padding: 5px;
-  margin: 5px;
+/* Cards */
+.card {
+  background: rgba(2, 6, 23, 0.8);
+  border: 1px solid #0ea5e9;
+  border-radius: 12px;
+  padding: 15px;
+  margin-bottom: 20px;
+  box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+  backdrop-filter: blur(6px);
 }
 
+/* Inputs */
+input {
+  background: #020617;
+  border: 1px solid #0ea5e9;
+  color: #38bdf8;
+  padding: 6px;
+  border-radius: 6px;
+}
+
+/* Buttons */
 button {
-  padding: 10px 20px;
-  margin-top: 10px;
-  background: #22c55e;
+  background: #38bdf8;
+  color: black;
   border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
   cursor: pointer;
   font-weight: bold;
+  box-shadow: 0 0 10px #38bdf8;
 }
 
-table {
-  width: 100%;
-  margin-top: 20px;
-  border-collapse: collapse;
+button:hover {
+  background: #0ea5e9;
+  box-shadow: 0 0 20px #38bdf8;
 }
 
-th, td {
-  border: 1px solid #334155;
-  padding: 6px;
-  text-align: center;
+/* Drag Zones */
+.shift {
+  min-height: 120px;
+  padding: 10px;
+  border: 2px dashed #38bdf8;
+  margin: 10px 0;
+  border-radius: 10px;
+  box-shadow: inset 0 0 10px #38bdf8;
 }
 
-.ok { color: lightgreen; }
-.under { color: red; }
-.over { color: orange; }
+/* Agents */
+.agent {
+  background: #38bdf8;
+  color: black;
+  padding: 8px;
+  margin: 6px;
+  border-radius: 6px;
+  cursor: grab;
+  box-shadow: 0 0 10px #38bdf8;
+  transition: 0.2s;
+}
+
+.agent:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 20px #38bdf8;
+}
+
+/* Titles */
+h1, h3, h4 {
+  text-shadow: 0 0 10px #38bdf8;
+}
 
 </style>
 </head>
 
 <body>
 
-<div class="container">
-<h1>📞 Dialler Scheduler V5</h1>
-
-<div>
-  AHT: <input id="aht" type="number" value="300">
-  Shrinkage (%): <input id="shrinkage" type="number" value="30">
+<div class="sidebar">
+  <h2>WFM Tool</h2>
+  <p>Dashboard</p>
+  <p>Scheduler</p>
+  <p>Agents</p>
 </div>
 
-<h3>Add Agent</h3>
-<input id="agentName" placeholder="Agent name">
-<select id="agentShift">
-  <option value="morning">Morning</option>
-  <option value="mid">Mid</option>
-  <option value="late">Late</option>
-</select>
-<button onclick="addAgent()">Add</button>
+<div class="main">
 
-<table id="agentTable">
-<thead>
-<tr><th>Name</th><th>Shift</th><th>Remove</th></tr>
-</thead>
-<tbody></tbody>
-</table>
+  <h1>📊 Workforce Dashboard</h1>
 
-<h3>Forecast</h3>
-<table id="inputTable">
-<thead>
-<tr><th>Hour</th><th>Calls</th></tr>
-</thead>
-<tbody></tbody>
-</table>
+  <div class="card">
+    AHT <input id="aht" value="300">
+    Shrinkage <input id="shrinkage" value="30">
+  </div>
 
-<button onclick="runScheduler()">Run Scheduler</button>
-<button onclick="exportCSV()">Export CSV</button>
+  <div class="card">
+    <h3>Agents</h3>
+    <input id="agentName" placeholder="Name">
+    <button onclick="addAgent()">Add</button>
+    <div id="agentPool"></div>
+  </div>
 
-<table id="outputTable">
-<thead>
-<tr>
-  <th>Hour</th>
-  <th>Required</th>
-  <th>Available</th>
-  <th>Breaks</th>
-  <th>Gap</th>
-</tr>
-</thead>
-<tbody></tbody>
-</table>
+  <div class="card">
+    <h3>Shift Assignment (Drag & Drop)</h3>
+
+    <div>
+      <h4>Morning</h4>
+      <div class="shift" id="morning" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+    </div>
+
+    <div>
+      <h4>Mid</h4>
+      <div class="shift" id="mid" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+    </div>
+
+    <div>
+      <h4>Late</h4>
+      <div class="shift" id="late" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+    </div>
+
+  </div>
 
 </div>
 
 <script>
 
-const hours = ["08","09","10","11","12","13","14","15","16","17"];
 let agents = [];
-
-const inputBody = document.querySelector("#inputTable tbody");
-
-hours.forEach(h => {
-  inputBody.innerHTML += `
-    <tr>
-      <td>${h}:00</td>
-      <td><input type="number" value="0"></td>
-    </tr>
-  `;
-});
 
 function addAgent() {
   const name = document.getElementById("agentName").value;
-  const shift = document.getElementById("agentShift").value;
-
   if (!name) return;
 
-  agents.push({
-    name,
-    shift,
-    breakHour: Math.floor(Math.random() * 6) + 2,
-    lunchHour: Math.floor(Math.random() * 6) + 3
-  });
+  const agent = document.createElement("div");
+  agent.className = "agent";
+  agent.draggable = true;
+  agent.innerText = name;
+  agent.id = "agent-" + Date.now();
 
-  renderAgents();
+  agent.ondragstart = drag;
+
+  document.getElementById("agentPool").appendChild(agent);
 }
 
-function renderAgents() {
-  const table = document.querySelector("#agentTable tbody");
-  table.innerHTML = "";
-
-  agents.forEach((a, i) => {
-    table.innerHTML += `
-      <tr>
-        <td>${a.name}</td>
-        <td>${a.shift}</td>
-        <td><button onclick="removeAgent(${i})">X</button></td>
-      </tr>
-    `;
-  });
+function allowDrop(ev) {
+  ev.preventDefault();
 }
 
-function removeAgent(i) {
-  agents.splice(i, 1);
-  renderAgents();
+function drag(ev) {
+  ev.dataTransfer.setData("text", ev.target.id);
 }
 
-function runScheduler() {
-
-  const aht = parseFloat(document.getElementById("aht").value);
-  const shrinkage = parseFloat(document.getElementById("shrinkage").value) / 100;
-
-  const rows = document.querySelectorAll("#inputTable tbody tr");
-  const output = document.querySelector("#outputTable tbody");
-
-  output.innerHTML = "";
-
-  let required = [];
-
-  rows.forEach(row => {
-    const calls = parseFloat(row.children[1].children[0].value) || 0;
-    const agentsNeeded = Math.ceil(((calls * aht) / 3600) * (1 + shrinkage));
-    required.push(agentsNeeded);
-  });
-
-  hours.forEach((h, i) => {
-
-    let working = 0;
-    let onBreak = 0;
-
-    agents.forEach(a => {
-
-      let active = false;
-
-      if (a.shift === "morning" && i <= 7) active = true;
-      if (a.shift === "mid" && i >= 2 && i <= 9) active = true;
-      if (a.shift === "late" && i >= 4) active = true;
-
-      if (!active) return;
-
-      if (i === a.breakHour || i === a.lunchHour) {
-        onBreak++;
-      } else {
-        working++;
-      }
-
-    });
-
-    const gap = working - required[i];
-
-    let className = "ok";
-    if (gap < 0) className = "under";
-    if (gap > 5) className = "over";
-
-    output.innerHTML += `
-      <tr>
-        <td>${h}:00</td>
-        <td>${required[i]}</td>
-        <td>${working}</td>
-        <td>${onBreak}</td>
-        <td class="${className}">${gap}</td>
-      </tr>
-    `;
-  });
-
-}
-
-function exportCSV() {
-  let csv = "Hour,Required,Available,Breaks,Gap\n";
-  const rows = document.querySelectorAll("#outputTable tbody tr");
-
-  rows.forEach(row => {
-    const cols = row.querySelectorAll("td");
-    csv += `${cols[0].innerText},${cols[1].innerText},${cols[2].innerText},${cols[3].innerText},${cols[4].innerText}\n`;
-  });
-
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = window.URL.createObjectURL(blob);
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "schedule.csv";
-  a.click();
+function drop(ev) {
+  ev.preventDefault();
+  const data = ev.dataTransfer.getData("text");
+  ev.target.appendChild(document.getElementById(data));
 }
 
 </script>
