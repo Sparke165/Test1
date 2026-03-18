@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Dialler Scheduler V4</title>
+<title>Dialler Scheduler V5</title>
 
 <style>
 body {
@@ -12,14 +12,17 @@ body {
   padding: 20px;
 }
 
-.container { max-width: 1200px; margin: auto; }
+.container { max-width: 1300px; margin: auto; }
 h1 { text-align: center; }
 
-input { width: 80px; padding: 5px; }
+input, select {
+  padding: 5px;
+  margin: 5px;
+}
 
 button {
   padding: 10px 20px;
-  margin-top: 15px;
+  margin-top: 10px;
   background: #22c55e;
   border: none;
   cursor: pointer;
@@ -34,7 +37,7 @@ table {
 
 th, td {
   border: 1px solid #334155;
-  padding: 8px;
+  padding: 6px;
   text-align: center;
 }
 
@@ -48,21 +51,39 @@ th, td {
 <body>
 
 <div class="container">
-<h1>📞 Dialler Scheduler V4</h1>
+<h1>📞 Dialler Scheduler V5</h1>
 
 <div>
   AHT: <input id="aht" type="number" value="300">
   Shrinkage (%): <input id="shrinkage" type="number" value="30">
 </div>
 
+<h3>Add Agent</h3>
+<input id="agentName" placeholder="Agent name">
+<select id="agentShift">
+  <option value="morning">Morning</option>
+  <option value="mid">Mid</option>
+  <option value="late">Late</option>
+</select>
+<button onclick="addAgent()">Add</button>
+
+<table id="agentTable">
+<thead>
+<tr><th>Name</th><th>Shift</th><th>Remove</th></tr>
+</thead>
+<tbody></tbody>
+</table>
+
+<h3>Forecast</h3>
 <table id="inputTable">
 <thead>
-<tr><th>Hour</th><th>Forecast Calls</th></tr>
+<tr><th>Hour</th><th>Calls</th></tr>
 </thead>
 <tbody></tbody>
 </table>
 
 <button onclick="runScheduler()">Run Scheduler</button>
+<button onclick="exportCSV()">Export CSV</button>
 
 <table id="outputTable">
 <thead>
@@ -70,34 +91,66 @@ th, td {
   <th>Hour</th>
   <th>Required</th>
   <th>Available</th>
-  <th>On Break</th>
+  <th>Breaks</th>
   <th>Gap</th>
 </tr>
 </thead>
 <tbody></tbody>
 </table>
 
-<h2 id="summary"></h2>
-
 </div>
 
 <script>
 
-const hours = [
-"08","09","10","11","12",
-"13","14","15","16","17"
-];
+const hours = ["08","09","10","11","12","13","14","15","16","17"];
+let agents = [];
 
 const inputBody = document.querySelector("#inputTable tbody");
 
-hours.forEach(hour => {
+hours.forEach(h => {
   inputBody.innerHTML += `
     <tr>
-      <td>${hour}:00</td>
+      <td>${h}:00</td>
       <td><input type="number" value="0"></td>
     </tr>
   `;
 });
+
+function addAgent() {
+  const name = document.getElementById("agentName").value;
+  const shift = document.getElementById("agentShift").value;
+
+  if (!name) return;
+
+  agents.push({
+    name,
+    shift,
+    breakHour: Math.floor(Math.random() * 6) + 2,
+    lunchHour: Math.floor(Math.random() * 6) + 3
+  });
+
+  renderAgents();
+}
+
+function renderAgents() {
+  const table = document.querySelector("#agentTable tbody");
+  table.innerHTML = "";
+
+  agents.forEach((a, i) => {
+    table.innerHTML += `
+      <tr>
+        <td>${a.name}</td>
+        <td>${a.shift}</td>
+        <td><button onclick="removeAgent(${i})">X</button></td>
+      </tr>
+    `;
+  });
+}
+
+function removeAgent(i) {
+  agents.splice(i, 1);
+  renderAgents();
+}
 
 function runScheduler() {
 
@@ -106,59 +159,33 @@ function runScheduler() {
 
   const rows = document.querySelectorAll("#inputTable tbody tr");
   const output = document.querySelector("#outputTable tbody");
+
   output.innerHTML = "";
 
   let required = [];
 
-  // STEP 1: Required agents
   rows.forEach(row => {
     const calls = parseFloat(row.children[1].children[0].value) || 0;
-    const agents = Math.ceil(((calls * aht) / 3600) * (1 + shrinkage));
-    required.push(agents);
+    const agentsNeeded = Math.ceil(((calls * aht) / 3600) * (1 + shrinkage));
+    required.push(agentsNeeded);
   });
-
-  // STEP 2: Shift sizes
-  let morning = Math.max(...required.slice(0, 5));
-  let mid = Math.max(...required.slice(2, 7));
-  let late = Math.max(...required.slice(4, 10));
-
-  // STEP 3: Build agents
-  let agents = [];
-
-  function createAgents(count, shift) {
-    for (let i = 0; i < count; i++) {
-      agents.push({
-        shift: shift,
-        breakHour: Math.floor(Math.random() * 6) + 2, // random break timing
-        lunchHour: Math.floor(Math.random() * 6) + 3
-      });
-    }
-  }
-
-  createAgents(morning, "morning");
-  createAgents(mid, "mid");
-  createAgents(late, "late");
-
-  // STEP 4: Simulate each hour
-  let totalGap = 0;
 
   hours.forEach((h, i) => {
 
     let working = 0;
     let onBreak = 0;
 
-    agents.forEach(agent => {
+    agents.forEach(a => {
 
       let active = false;
 
-      if (agent.shift === "morning" && i <= 7) active = true;
-      if (agent.shift === "mid" && i >= 2 && i <= 9) active = true;
-      if (agent.shift === "late" && i >= 4) active = true;
+      if (a.shift === "morning" && i <= 7) active = true;
+      if (a.shift === "mid" && i >= 2 && i <= 9) active = true;
+      if (a.shift === "late" && i >= 4) active = true;
 
       if (!active) return;
 
-      // Break logic
-      if (i === agent.breakHour || i === agent.lunchHour) {
+      if (i === a.breakHour || i === a.lunchHour) {
         onBreak++;
       } else {
         working++;
@@ -167,7 +194,6 @@ function runScheduler() {
     });
 
     const gap = working - required[i];
-    totalGap += gap;
 
     let className = "ok";
     if (gap < 0) className = "under";
@@ -184,9 +210,24 @@ function runScheduler() {
     `;
   });
 
-  document.getElementById("summary").innerText =
-    "Net Staffing Gap (Day): " + totalGap;
+}
 
+function exportCSV() {
+  let csv = "Hour,Required,Available,Breaks,Gap\n";
+  const rows = document.querySelectorAll("#outputTable tbody tr");
+
+  rows.forEach(row => {
+    const cols = row.querySelectorAll("td");
+    csv += `${cols[0].innerText},${cols[1].innerText},${cols[2].innerText},${cols[3].innerText},${cols[4].innerText}\n`;
+  });
+
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = window.URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "schedule.csv";
+  a.click();
 }
 
 </script>
