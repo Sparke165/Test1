@@ -5,9 +5,8 @@
 <title>WFM Dashboard V6</title>
 
 <style>
-<body>
-  
-  {margin: 0;
+body {
+  margin: 0;
   font-family: 'Segoe UI', Arial;
   background: #020617;
   color: #38bdf8;
@@ -103,17 +102,11 @@ button:hover {
 h1, h3, h4 {
   text-shadow: 0 0 10px #38bdf8;
 }
-
 </style>
 </head>
 
 <body>
 
-<div class="card">
-  <button onclick="runScheduler()">Run Scheduler</button>
-  <button onclick="autoSchedule()">⚡ Auto Schedule</button>
-</div>
-  
 <div class="sidebar">
   <h2>WFM Tool</h2>
   <p>Dashboard</p>
@@ -192,73 +185,6 @@ function drop(ev) {
   ev.target.appendChild(document.getElementById(data));
 }
 
-function autoSchedule() {
-
-  const aht = parseFloat(document.getElementById("aht").value);
-  const shrinkage = parseFloat(document.getElementById("shrinkage").value) / 100;
-
-  const rows = document.querySelectorAll("#inputTable tbody tr");
-
-  let required = [];
-
-  // Step 1: Calculate demand
-  rows.forEach(row => {
-    const calls = parseFloat(row.children[1].children[0].value) || 0;
-    const agentsNeeded = Math.ceil(((calls * aht) / 3600) * (1 + shrinkage));
-    required.push(agentsNeeded);
-  });
-
-  // Step 2: Reset agents
-  agents = [];
-  document.getElementById("agentPool").innerHTML = "";
-  document.getElementById("morning").innerHTML = "";
-  document.getElementById("mid").innerHTML = "";
-  document.getElementById("late").innerHTML = "";
-
-  let remaining = [...required];
-
-  function assignShift(shift, start, end) {
-
-    // Find peak demand in this window
-    let peak = Math.max(...remaining.slice(start, end + 1));
-
-    for (let i = 0; i < peak; i++) {
-      const name = `Auto-${shift}-${i+1}`;
-
-      const agent = {
-        name,
-        shift,
-        breakHour: Math.floor(Math.random() * 6) + 2,
-        lunchHour: Math.floor(Math.random() * 6) + 3
-      };
-
-      agents.push(agent);
-
-      // Add visually
-      const div = document.createElement("div");
-      div.className = "agent";
-      div.innerText = name;
-      div.draggable = true;
-      div.id = "agent-" + Date.now() + Math.random();
-      div.ondragstart = drag;
-
-      document.getElementById(shift).appendChild(div);
-    }
-
-    // Reduce demand
-    for (let i = start; i <= end; i++) {
-      remaining[i] = Math.max(0, remaining[i] - peak);
-    }
-  }
-
-  // Step 3: Assign shifts strategically
-  assignShift("morning", 0, 7);
-  assignShift("mid", 2, 9);
-  assignShift("late", 4, 9);
-
-  // Step 4: Run simulation
-  runScheduler();
-}
 </script>
 
 </body>
